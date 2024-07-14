@@ -2,11 +2,14 @@
 // Mail:   lunar_ubuntu@qq.com
 // Author: https://github.com/xiaoqixian
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, Fields, FieldsUnnamed, ItemEnum, Variant};
 use quote::quote;
+
+mod attr;
+use attr::AutoFromAttributes;
 
 fn path_to_string(path: &syn::TypePath) -> String {
     if path.qself.is_some() {
@@ -25,7 +28,11 @@ fn path_to_string(path: &syn::TypePath) -> String {
 }
 
 #[proc_macro_attribute]
-pub fn auto_throw(_attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn auto_throw(attrs: TokenStream, input: TokenStream) -> TokenStream {
+    // println!("attr: \"{attr}\"");
+    let AutoFromAttributes { disabled, .. } = 
+        parse_macro_input!(attrs as AutoFromAttributes);
+
     let og = parse_macro_input!(input as ItemEnum);
     let ItemEnum { variants, ident: enum_name, .. } = og.clone();
 
@@ -33,27 +40,33 @@ pub fn auto_throw(_attr: TokenStream, input: TokenStream) -> TokenStream {
     // only unnamed fields with length of 1 is allowed
     let mut type2ident = BTreeMap::<String, String>::new();
     let variants = variants.into_iter()
-        .filter(|var| match &var.fields {
-            Fields::Unnamed(unnamed) => {
-                let unnamed = &unnamed.unnamed;
-                if unnamed.len() != 1 {
-                    return false
-                }
-                let first = unnamed.first().unwrap();
-                match &first.ty {
-                    syn::Type::Path(type_path) => {
-                        let type_string = path_to_string(type_path);
-                        let for_help = type_string.clone();
-                        if let Some(old) = type2ident.insert(type_string, var.ident.to_string()) {
-                            panic!("Variant {} and {} has the same type {}", 
-                                old, var.ident.to_string(), for_help);
-                        }
-                        true
-                    },
-                    _ => false
-                }
-            },
-            _ => false
+        .filter(|var| {
+            if disabled.contains(&var.ident) {
+                return false;
+            }
+
+            match &var.fields {
+                Fields::Unnamed(unnamed) => {
+                    let unnamed = &unnamed.unnamed;
+                    if unnamed.len() != 1 {
+                        return false
+                    }
+                    let first = unnamed.first().unwrap();
+                    match &first.ty {
+                        syn::Type::Path(type_path) => {
+                            let type_string = path_to_string(type_path);
+                            let for_help = type_string.clone();
+                            if let Some(old) = type2ident.insert(type_string, var.ident.to_string()) {
+                                panic!("Variant {} and {} has the same type {}", 
+                                    old, var.ident.to_string(), for_help);
+                            }
+                            true
+                        },
+                        _ => false
+                    }
+                },
+                _ => false
+            }
         })
         .collect::<Vec<_>>();
 

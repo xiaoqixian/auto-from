@@ -4,7 +4,7 @@
 
 use auto_from::auto_throw;
 
-#[auto_throw]
+#[auto_throw(disabled = [FmtError])]
 enum Error {
     IOError(std::io::Error),
     FmtError(std::fmt::Error),
