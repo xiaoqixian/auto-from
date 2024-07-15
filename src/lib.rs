@@ -33,8 +33,8 @@ pub fn auto_throw(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let AutoFromAttributes { disabled, .. } = 
         parse_macro_input!(attrs as AutoFromAttributes);
 
-    let og = parse_macro_input!(input as ItemEnum);
-    let ItemEnum { variants, ident: enum_name, .. } = og.clone();
+    let enm = parse_macro_input!(input as ItemEnum);
+    let ItemEnum { variants, ident: enum_name, .. } = enm.clone();
 
     // check fields types
     // only unnamed fields with length of 1 is allowed
@@ -89,7 +89,7 @@ pub fn auto_throw(attrs: TokenStream, input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
     TokenStream::from(quote! {
-        #og
+        #enm
         #(#impls)*
     })
 }
